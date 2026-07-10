@@ -1,0 +1,23 @@
+{
+  "name": "weather-time-machine",
+  "version": "1.0.0",
+  "description": "A kid-friendly historical weather explorer with interactive animations, powered by Open-Meteo.",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "weather",
+    "kids",
+    "education",
+    "history",
+    "animation",
+    "open-meteo"
+  ],
+  "license": "MIT"
+}

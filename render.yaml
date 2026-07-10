@@ -1,0 +1,30 @@
+# Render Blueprint — deploys Weather Time Machine to Render's global CDN as a static site.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# To use: push this repo to GitHub, then in Render click
+# "New +" → "Blueprint" and select the repo. Render reads this file automatically.
+services:
+  - type: web
+    name: weather-time-machine
+    runtime: static
+    # No build step: the app is plain HTML/CSS/JS.
+    buildCommand: "echo 'No build step needed — static site'"
+    # Folder that contains the files to publish (index.html lives here).
+    staticPublishPath: ./public
+    # Automatically create a preview for every pull request.
+    previews:
+      generation: automatic
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      # Let the browser cache static assets for a day.
+      - path: /*.css
+        name: Cache-Control
+        value: public, max-age=86400
+      - path: /*.js
+        name: Cache-Control
+        value: public, max-age=86400

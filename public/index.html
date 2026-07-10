@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Weather Time Machine — a fun way for kids to explore historical weather with interactive animations." />
+  <title>🚀 Weather Time Machine — Weather for Kids</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>" />
+</head>
+<body>
+  <!-- ============ HEADER ============ -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-badge" aria-hidden="true">⛅</span>
+      <div class="brand-text">
+        <h1>Weather Time Machine</h1>
+        <p>Travel back in time and watch the weather come alive!</p>
+      </div>
+    </div>
+    <div class="header-toggles">
+      <button id="unitToggle" class="toggle-btn" type="button" title="Switch temperature units" aria-label="Switch temperature units">
+        <span class="toggle-emoji">🌡️</span><span id="unitLabel">°C</span>
+      </button>
+      <button id="dayNightToggle" class="toggle-btn" type="button" title="Switch between day and night" aria-label="Switch between day and night">
+        <span id="dayNightEmoji" class="toggle-emoji">☀️</span><span id="dayNightLabel">Day</span>
+      </button>
+      <button id="soundToggle" class="toggle-btn" type="button" title="Turn weather sounds on or off" aria-label="Turn weather sounds on or off">
+        <span id="soundEmoji" class="toggle-emoji">🔇</span><span id="soundLabel">Sound off</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ============ CONTROLS ============ -->
+    <section class="controls card" aria-label="Choose a place and a day">
+      <div class="control-block">
+        <label class="control-label" for="cityInput">🔎 Pick a place</label>
+        <div class="search-wrap">
+          <input id="cityInput" class="text-input" type="text" placeholder="Type a city… e.g. Tokyo" autocomplete="off" />
+          <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+        </div>
+        <div class="chips" id="presetChips" aria-label="Popular places">
+          <button class="chip" data-lat="43.7001" data-lon="-79.4163" data-name="Toronto, Canada" type="button">Toronto</button>
+          <button class="chip" data-lat="51.5074" data-lon="-0.1278" data-name="London, UK" type="button">London</button>
+          <button class="chip" data-lat="35.6895" data-lon="139.6917" data-name="Tokyo, Japan" type="button">Tokyo</button>
+          <button class="chip" data-lat="-33.8688" data-lon="151.2093" data-name="Sydney, Australia" type="button">Sydney</button>
+          <button class="chip" data-lat="64.1466" data-lon="-21.9426" data-name="Reykjavík, Iceland" type="button">Reykjavík</button>
+          <button class="chip" data-lat="1.3521" data-lon="103.8198" data-name="Singapore" type="button">Singapore</button>
+        </div>
+      </div>
+
+      <div class="control-block">
+        <label class="control-label" for="dateInput">📅 Pick a day in the past</label>
+        <div class="date-row">
+          <input id="dateInput" class="text-input" type="date" />
+          <button id="surpriseBtn" class="btn btn-secondary" type="button" title="Jump to a random day">🎲 Surprise me!</button>
+        </div>
+        <p class="hint">You can travel all the way back to 1940! 🕰️</p>
+      </div>
+
+      <button id="travelBtn" class="btn btn-primary btn-travel" type="button">🚀 Travel in time!</button>
+    </section>
+
+    <!-- ============ THE ANIMATED SCENE ============ -->
+    <section class="stage-wrap" aria-label="Weather scene">
+      <div id="scene" class="scene scene-clear">
+        <!-- Sky decorations -->
+        <div class="stars" id="stars" aria-hidden="true"></div>
+        <div class="celestial sun" id="sun" aria-hidden="true"></div>
+        <div class="celestial moon" id="moon" aria-hidden="true"></div>
+
+        <!-- Clouds -->
+        <div class="clouds" id="clouds" aria-hidden="true">
+          <div class="cloud cloud-1"></div>
+          <div class="cloud cloud-2"></div>
+          <div class="cloud cloud-3"></div>
+        </div>
+
+        <!-- Rainbow (shows on nice days after rain-ish) -->
+        <div class="rainbow" id="rainbow" aria-hidden="true"></div>
+
+        <!-- Lightning flash -->
+        <div class="lightning" id="lightning" aria-hidden="true"></div>
+
+        <!-- Particle canvas for rain / snow -->
+        <canvas id="fx" class="fx" aria-hidden="true"></canvas>
+
+        <!-- Rolling hills / ground -->
+        <div class="ground" aria-hidden="true">
+          <div class="hill hill-back"></div>
+          <div class="hill hill-front"></div>
+        </div>
+
+        <!-- Friendly mascot -->
+        <div class="mascot" id="mascot" title="Hi, I'm Nimbus!">
+          <div class="mascot-body">
+            <div class="mascot-eyes">
+              <span class="eye"><span class="pupil"></span></span>
+              <span class="eye"><span class="pupil"></span></span>
+            </div>
+            <div class="mascot-cheeks"><span></span><span></span></div>
+            <div class="mascot-mouth" id="mascotMouth"></div>
+          </div>
+          <div class="mascot-speech" id="mascotSpeech">Pick a place and press Travel! 🚀</div>
+        </div>
+
+        <!-- Readout overlaid on the scene -->
+        <div class="scene-readout" id="sceneReadout">
+          <div class="readout-place" id="readoutPlace">Somewhere on Earth</div>
+          <div class="readout-date" id="readoutDate">Choose a day…</div>
+          <div class="readout-temp" id="readoutTemp">--°</div>
+          <div class="readout-condition" id="readoutCondition">Ready for adventure!</div>
+        </div>
+
+        <!-- Loading + error states -->
+        <div class="scene-status" id="sceneStatus" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p id="statusText">Warming up the time machine…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INFO CARDS ============ -->
+    <section class="cards" aria-label="Weather details">
+      <article class="card info-card" id="cardTemp">
+        <h3>🌡️ Temperature</h3>
+        <div class="thermo">
+          <div class="thermo-tube"><div class="thermo-fill" id="thermoFill"></div></div>
+          <div class="thermo-readings">
+            <div><span class="big" id="tempMax">--°</span><small>High</small></div>
+            <div><span class="big" id="tempMin">--°</span><small>Low</small></div>
+          </div>
+        </div>
+        <p class="card-note" id="tempNote">How warm was it?</p>
+      </article>
+
+      <article class="card info-card" id="cardRain">
+        <h3>💧 Rain</h3>
+        <div class="gauge">
+          <span class="gauge-emoji" id="rainEmoji">🌧️</span>
+          <span class="big" id="rainAmount">-- mm</span>
+        </div>
+        <p class="card-note" id="rainNote">Did it rain?</p>
+      </article>
+
+      <article class="card info-card" id="cardWind">
+        <h3>💨 Wind</h3>
+        <div class="gauge">
+          <span class="gauge-emoji windmill" id="windEmoji">🌬️</span>
+          <span class="big" id="windAmount">-- km/h</span>
+        </div>
+        <p class="card-note" id="windNote">Was it windy?</p>
+      </article>
+
+      <article class="card info-card" id="cardSnow">
+        <h3>❄️ Snow</h3>
+        <div class="gauge">
+          <span class="gauge-emoji" id="snowEmoji">☃️</span>
+          <span class="big" id="snowAmount">-- cm</span>
+        </div>
+        <p class="card-note" id="snowNote">Any snow to play in?</p>
+      </article>
+    </section>
+
+    <!-- ============ FUN FACTS ============ -->
+    <section class="facts card" aria-label="Weather fun facts">
+      <div class="facts-head">
+        <h2>💡 Did you know?</h2>
+        <button id="nextFactBtn" class="btn btn-secondary" type="button">Another fact →</button>
+      </div>
+      <p class="fact-text" id="factText">Weather is what the sky is doing right now — sunshine, rain, wind, or snow!</p>
+      <div class="explainer" id="explainer">
+        <h3 id="explainerTitle">Why does this happen?</h3>
+        <p id="explainerText">Choose a day above and I'll explain the weather you discover!</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Made for curious kids 🌈 · Real weather data from
+      <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+      (free historical weather, back to 1940).</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
