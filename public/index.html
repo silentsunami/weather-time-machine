@@ -18,7 +18,7 @@
       <span class="brand-badge" aria-hidden="true">⛅</span>
       <div class="brand-text">
         <h1>Weather Time Machine</h1>
-        <p>Travel back in time and watch the weather come alive!</p>
+        <p>Travel to the past, present &amp; future — and watch the weather come alive!</p>
       </div>
     </div>
     <div class="header-toggles">
@@ -54,12 +54,14 @@
       </div>
 
       <div class="control-block">
-        <label class="control-label" for="dateInput">📅 Pick a day in the past</label>
-        <div class="date-row">
-          <input id="dateInput" class="text-input" type="date" />
-          <button id="surpriseBtn" class="btn btn-secondary" type="button" title="Jump to a random day">🎲 Surprise me!</button>
+        <label class="control-label" for="dateInput">📅 Pick a day — past, present or future!</label>
+        <input id="dateInput" class="text-input" type="date" />
+        <div class="date-quick" id="dateQuick" aria-label="Quick dates">
+          <button class="chip" data-days="0" type="button">📅 Today</button>
+          <button class="chip" data-days="1" type="button">🔮 Tomorrow</button>
+          <button id="surpriseBtn" class="chip" type="button" title="Jump to a random day">🎲 Surprise me!</button>
         </div>
-        <p class="hint">You can travel all the way back to 1940! 🕰️</p>
+        <p class="hint">Travel from 1940 all the way to 15 days into the future! 🕰️🔮</p>
       </div>
 
       <button id="travelBtn" class="btn btn-primary btn-travel" type="button">🚀 Travel in time!</button>
@@ -110,10 +112,12 @@
 
         <!-- Readout overlaid on the scene -->
         <div class="scene-readout" id="sceneReadout">
+          <div class="readout-when" id="readoutWhen">📅 Today</div>
           <div class="readout-place" id="readoutPlace">Somewhere on Earth</div>
           <div class="readout-date" id="readoutDate">Choose a day…</div>
           <div class="readout-temp" id="readoutTemp">--°</div>
           <div class="readout-condition" id="readoutCondition">Ready for adventure!</div>
+          <div class="readout-now" id="readoutNow" hidden>🔴 Right now: --°</div>
         </div>
 
         <!-- Loading + error states -->

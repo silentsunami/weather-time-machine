@@ -106,6 +106,7 @@ const els = {
   suggestions: $("suggestions"),
   presetChips: $("presetChips"),
   dateInput: $("dateInput"),
+  dateQuick: $("dateQuick"),
   surpriseBtn: $("surpriseBtn"),
   travelBtn: $("travelBtn"),
 
@@ -118,6 +119,7 @@ const els = {
   fx: $("fx"),
   mascot: $("mascot"), mascotMouth: $("mascotMouth"), mascotSpeech: $("mascotSpeech"),
 
+  readoutWhen: $("readoutWhen"), readoutNow: $("readoutNow"),
   readoutPlace: $("readoutPlace"), readoutDate: $("readoutDate"),
   readoutTemp: $("readoutTemp"), readoutCondition: $("readoutCondition"),
   sceneStatus: $("sceneStatus"), statusText: $("statusText"),
@@ -141,6 +143,34 @@ function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d;
+}
+
+function daysFromNow(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function todayISO() { return toISO(new Date()); }
+
+// Whole-day difference between two ISO dates (a - b).
+function dayDiff(aISO, bISO) {
+  const a = new Date(aISO + "T00:00:00");
+  const b = new Date(bISO + "T00:00:00");
+  return Math.round((a - b) / 86400000);
+}
+
+// Friendly relative label, e.g. "Today", "Tomorrow", "In 5 days", "3 years ago".
+function relativeLabel(diff) {
+  if (diff === 0) return "📅 Today";
+  if (diff === 1) return "🔮 Tomorrow";
+  if (diff === -1) return "🕰️ Yesterday";
+  if (diff > 1) return `🔮 In ${diff} days`;
+  const ago = -diff;
+  if (ago < 45) return `🕰️ ${ago} days ago`;
+  if (ago < 365) return `🕰️ ${Math.round(ago / 30)} months ago`;
+  const years = ago / 365;
+  return `🕰️ ${years < 1.5 ? "1 year" : Math.round(years) + " years"} ago`;
 }
 
 function prettyDate(iso) {
@@ -171,16 +201,16 @@ async function geocode(query) {
   return data.results || [];
 }
 
-async function fetchHistory(lat, lon, date) {
-  const daily = [
-    "weather_code", "temperature_2m_max", "temperature_2m_min", "temperature_2m_mean",
-    "precipitation_sum", "rain_sum", "snowfall_sum", "wind_speed_10m_max"
-  ].join(",");
-  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
-              `&start_date=${date}&end_date=${date}&daily=${daily}&timezone=auto`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("weather failed");
-  const data = await res.json();
+const DAILY_FIELDS = [
+  "weather_code", "temperature_2m_max", "temperature_2m_min", "temperature_2m_mean",
+  "precipitation_sum", "rain_sum", "snowfall_sum", "wind_speed_10m_max"
+].join(",");
+
+// How many days back from today we still trust the forecast API (it reaches ~93 days
+// back and ~15 days ahead). Older than this uses the historical archive.
+const FORECAST_BACK_DAYS = 10;
+
+function parseDaily(data) {
   if (!data.daily || !data.daily.time || data.daily.time.length === 0) {
     throw new Error("no data");
   }
@@ -195,6 +225,53 @@ async function fetchHistory(lat, lon, date) {
     snow: data.daily.snowfall_sum[i],
     wind: data.daily.wind_speed_10m_max[i]
   };
+}
+
+// Historical archive (real records back to 1940, with a short delay).
+async function fetchArchive(lat, lon, date) {
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+              `&start_date=${date}&end_date=${date}&daily=${DAILY_FIELDS}&timezone=auto`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("weather failed");
+  return parseDaily(await res.json());
+}
+
+// Forecast API: recent past, today (with live "current" conditions), and up to ~15 days ahead.
+async function fetchForecast(lat, lon, date, isToday) {
+  let url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+            `&start_date=${date}&end_date=${date}&daily=${DAILY_FIELDS}&timezone=auto`;
+  if (isToday) {
+    url += "&current=temperature_2m,weather_code,wind_speed_10m,precipitation,is_day";
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("weather failed");
+  const data = await res.json();
+  const out = parseDaily(data);
+  if (data.current) {
+    out.current = {
+      temp: data.current.temperature_2m,
+      code: data.current.weather_code,
+      wind: data.current.wind_speed_10m,
+      isDay: data.current.is_day === 1
+    };
+  }
+  return out;
+}
+
+// Pick the right source based on how far the date is from today, and tag the result
+// as past / today / future so the UI can present it nicely.
+async function fetchWeather(lat, lon, date) {
+  const diff = dayDiff(date, todayISO());   // date - today, in days
+  const temporal = diff === 0 ? "today" : (diff > 0 ? "future" : "past");
+  let data;
+  if (diff >= -FORECAST_BACK_DAYS) {
+    data = await fetchForecast(lat, lon, date, diff === 0);
+  } else {
+    data = await fetchArchive(lat, lon, date);
+  }
+  data.temporal = temporal;
+  data.dayDiff = diff;
+  return data;
 }
 
 /* ============================================================
@@ -308,7 +385,7 @@ async function travel() {
   els.mascotSpeech.textContent = "Zooming through time… 🌀";
 
   try {
-    const w = await fetchHistory(state.place.lat, state.place.lon, date);
+    const w = await fetchWeather(state.place.lat, state.place.lon, date);
     hideStatus();
     render(w, date);
   } catch (err) {
@@ -345,10 +422,20 @@ function render(w, date) {
   els.scene.classList.toggle("show-rainbow", showRainbow);
 
   // ---- Readout ----
+  els.readoutWhen.textContent = relativeLabel(w.dayDiff ?? 0);
   els.readoutPlace.textContent = state.place.name;
   els.readoutDate.textContent = prettyDate(date);
   els.readoutTemp.textContent = tempStr(meanT);
   els.readoutCondition.textContent = `${info.emoji} ${info.label}`;
+
+  // ---- Live "right now" reading (today only) ----
+  if (w.current) {
+    const cur = WEATHER_CODES[w.current.code] || info;
+    els.readoutNow.textContent = `🔴 Right now: ${tempStr(w.current.temp)} ${cur.emoji} ${cur.label}`;
+    els.readoutNow.hidden = false;
+  } else {
+    els.readoutNow.hidden = true;
+  }
 
   // ---- Info cards ----
   renderTempCard(w);
@@ -360,7 +447,7 @@ function render(w, date) {
   const ex = EXPLAINERS[cat] || EXPLAINERS.cloudy;
   els.explainerTitle.textContent = ex.title;
   els.explainerText.textContent = ex.text;
-  updateMascot(cat, meanT, info);
+  updateMascot(cat, meanT, info, w.temporal);
 
   // ---- Particles + sound ----
   setParticles(cat, w);
@@ -430,7 +517,7 @@ function renderSnowCard(w) {
 }
 
 /* ---------- Mascot ---------- */
-function updateMascot(cat, meanT, info) {
+function updateMascot(cat, meanT, info, temporal) {
   const m = els.mascot;
   m.classList.remove("happy", "sad", "cold", "hot");
   let mood = "happy";
@@ -453,7 +540,8 @@ function updateMascot(cat, meanT, info) {
     default: speech = "Here's the weather from that day! 🌈";
   }
   m.classList.add(mood);
-  els.mascotSpeech.textContent = speech;
+  const lead = temporal === "future" ? "🔮 Future peek! " : "";
+  els.mascotSpeech.textContent = lead + speech;
 }
 
 /* ============================================================
@@ -656,11 +744,21 @@ els.travelBtn.addEventListener("click", travel);
 
 els.surpriseBtn.addEventListener("click", () => {
   const min = new Date("1960-01-01").getTime();
-  const max = daysAgo(6).getTime();
+  const max = daysFromNow(15).getTime();
   const rnd = new Date(min + Math.random() * (max - min));
   els.dateInput.value = toISO(rnd);
   travel();
 });
+
+// Quick-date buttons: Today / Tomorrow (data-days offset from today)
+if (els.dateQuick) {
+  els.dateQuick.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-days]");
+    if (!btn) return;
+    els.dateInput.value = toISO(daysFromNow(parseInt(btn.dataset.days, 10)));
+    travel();
+  });
+}
 
 els.nextFactBtn.addEventListener("click", showNextFact);
 function showNextFact() {
@@ -672,11 +770,10 @@ function showNextFact() {
    Init
    ============================================================ */
 function init() {
-  // date bounds
-  const maxDate = daysAgo(6);          // archive has a short delay
-  els.dateInput.max = toISO(maxDate);
+  // date bounds: 1940 in the past up to ~15 days into the future
+  els.dateInput.max = toISO(daysFromNow(15));
   els.dateInput.min = "1940-01-01";
-  els.dateInput.value = toISO(daysAgo(365)); // one year ago
+  els.dateInput.value = todayISO(); // start on today's current weather
 
   els.cityInput.value = state.place.name;
   markSelectedChip([...els.presetChips.querySelectorAll(".chip")][0]);

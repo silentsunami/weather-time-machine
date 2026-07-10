@@ -1,11 +1,12 @@
 # 🚀 Weather Time Machine
 
-A playful, kid‑friendly web app that lets children explore **real historical weather** from
-almost anywhere on Earth — and watch it come alive with **interactive animations**.
+A playful, kid‑friendly web app that lets children explore **real weather — past, present, and
+future** — from almost anywhere on Earth, and watch it come alive with **interactive animations**.
 
-Pick a city, spin the dial to any day (all the way back to **1940**), press **Travel in time!**,
-and the scene fills with sunshine, drifting clouds, falling rain, gentle snow, or crackling
-thunderstorms. A friendly cloud mascot named **Nimbus** reacts and explains what's happening in
+Pick a city, spin the dial to any day (all the way back to **1940** or up to **15 days into the
+future**), press **Travel in time!**, and the scene fills with sunshine, drifting clouds, falling
+rain, gentle snow, or crackling thunderstorms. For today it even shows the **live "right now"
+conditions**. A friendly cloud mascot named **Nimbus** reacts and explains what's happening in
 simple words.
 
 ![Weather for kids](https://img.shields.io/badge/made%20for-curious%20kids-ff8a3d)
@@ -13,7 +14,9 @@ simple words.
 ## ✨ What kids can do
 
 - **Search any place** in the world (with a fun autocomplete) or tap a preset city.
-- **Travel to any past date** — birthdays, holidays, "the day I was born!" — back to 1940.
+- **Travel to any day** — the past (birthdays, holidays, "the day I was born!" back to 1940),
+  **today** (with live current conditions), or the **future** (forecast up to 15 days ahead).
+- **Quick jumps** with **Today**, **Tomorrow**, and **Surprise me!** buttons.
 - **Watch the weather animate**: sun rays, floating clouds, rain and snow particles, lightning
   flashes, rainbows, and a starry night mode.
 - **Read it in a fun way**: an animated thermometer, rain/snow/wind gauges, and kid‑level
@@ -103,10 +106,12 @@ Real weather data is provided by the free **[Open‑Meteo](https://open-meteo.co
 key required:
 
 - **Geocoding API** – turns a city name into a location on the map.
-- **Historical Weather API** – daily weather records going back to **1940**.
+- **Historical Weather API** – daily records going back to **1940** (used for older dates).
+- **Forecast API** – live current conditions plus the forecast up to ~15 days ahead (used for
+  recent, today, and future dates).
 
-Data is fetched live in the browser, so an **internet connection is required**. Historical records
-have a short (~5 day) delay, so the date picker stops a few days before today.
+The app automatically picks the right source based on the date you choose. Data is fetched live in
+the browser, so an **internet connection is required**.
 
 ## 🎨 Notes for grown‑ups
 
