@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Leaflet (interactive map) — load its CSS before ours so we can override -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>" />
 </head>
@@ -139,6 +142,10 @@
             <div><span class="big" id="tempMin">--°</span><small>Low</small></div>
           </div>
         </div>
+        <div class="feels-like" id="feelsLike" hidden>
+          <span class="feels-emoji" aria-hidden="true">🤔</span>
+          <span class="feels-text">Feels like <strong id="feelsTemp">--°</strong> — <span id="feelsNote">just right</span></span>
+        </div>
         <p class="card-note" id="tempNote">How warm was it?</p>
       </article>
 
@@ -170,6 +177,16 @@
       </article>
     </section>
 
+    <!-- ============ LOCATION MAP ============ -->
+    <section class="map-section card" aria-label="Location on the map">
+      <div class="map-head">
+        <h2>🗺️ Where on Earth?</h2>
+        <span class="map-coords" id="mapCoords" aria-live="polite"></span>
+      </div>
+      <div id="map" class="map" role="img" aria-label="Map showing the chosen location"></div>
+      <p class="map-note">Drag to explore and use + / − to zoom! Real map from OpenStreetMap. 🌍</p>
+    </section>
+
     <!-- ============ FUN FACTS ============ -->
     <section class="facts card" aria-label="Weather fun facts">
       <div class="facts-head">
@@ -190,6 +207,9 @@
       (free historical weather, back to 1940).</p>
   </footer>
 
+  <!-- Leaflet must load before app.js so the map can initialize -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>

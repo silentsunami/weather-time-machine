@@ -125,9 +125,12 @@ const els = {
   sceneStatus: $("sceneStatus"), statusText: $("statusText"),
 
   thermoFill: $("thermoFill"), tempMax: $("tempMax"), tempMin: $("tempMin"), tempNote: $("tempNote"),
+  feelsLike: $("feelsLike"), feelsTemp: $("feelsTemp"), feelsNote: $("feelsNote"),
   rainEmoji: $("rainEmoji"), rainAmount: $("rainAmount"), rainNote: $("rainNote"),
   windEmoji: $("windEmoji"), windAmount: $("windAmount"), windNote: $("windNote"),
   snowEmoji: $("snowEmoji"), snowAmount: $("snowAmount"), snowNote: $("snowNote"),
+
+  map: $("map"), mapCoords: $("mapCoords"),
 
   factText: $("factText"), nextFactBtn: $("nextFactBtn"),
   explainerTitle: $("explainerTitle"), explainerText: $("explainerText")
@@ -203,6 +206,7 @@ async function geocode(query) {
 
 const DAILY_FIELDS = [
   "weather_code", "temperature_2m_max", "temperature_2m_min", "temperature_2m_mean",
+  "apparent_temperature_max", "apparent_temperature_min", "apparent_temperature_mean",
   "precipitation_sum", "rain_sum", "snowfall_sum", "wind_speed_10m_max"
 ].join(",");
 
@@ -215,15 +219,19 @@ function parseDaily(data) {
     throw new Error("no data");
   }
   const i = 0;
+  const d = data.daily;
   return {
-    code: data.daily.weather_code[i],
-    tMax: data.daily.temperature_2m_max[i],
-    tMin: data.daily.temperature_2m_min[i],
-    tMean: data.daily.temperature_2m_mean[i],
-    precip: data.daily.precipitation_sum[i],
-    rain: data.daily.rain_sum[i],
-    snow: data.daily.snowfall_sum[i],
-    wind: data.daily.wind_speed_10m_max[i]
+    code: d.weather_code[i],
+    tMax: d.temperature_2m_max[i],
+    tMin: d.temperature_2m_min[i],
+    tMean: d.temperature_2m_mean[i],
+    feelsMax: d.apparent_temperature_max?.[i],
+    feelsMin: d.apparent_temperature_min?.[i],
+    feelsMean: d.apparent_temperature_mean?.[i],
+    precip: d.precipitation_sum[i],
+    rain: d.rain_sum[i],
+    snow: d.snowfall_sum[i],
+    wind: d.wind_speed_10m_max[i]
   };
 }
 
@@ -241,7 +249,7 @@ async function fetchForecast(lat, lon, date, isToday) {
   let url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
             `&start_date=${date}&end_date=${date}&daily=${DAILY_FIELDS}&timezone=auto`;
   if (isToday) {
-    url += "&current=temperature_2m,weather_code,wind_speed_10m,precipitation,is_day";
+    url += "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day";
   }
   const res = await fetch(url);
   if (!res.ok) throw new Error("weather failed");
@@ -250,6 +258,7 @@ async function fetchForecast(lat, lon, date, isToday) {
   if (data.current) {
     out.current = {
       temp: data.current.temperature_2m,
+      feels: data.current.apparent_temperature,
       code: data.current.weather_code,
       wind: data.current.wind_speed_10m,
       isDay: data.current.is_day === 1
@@ -431,7 +440,9 @@ function render(w, date) {
   // ---- Live "right now" reading (today only) ----
   if (w.current) {
     const cur = WEATHER_CODES[w.current.code] || info;
-    els.readoutNow.textContent = `🔴 Right now: ${tempStr(w.current.temp)} ${cur.emoji} ${cur.label}`;
+    const feels = (w.current.feels !== null && w.current.feels !== undefined)
+      ? ` (feels ${tempStr(w.current.feels)})` : "";
+    els.readoutNow.textContent = `🔴 Right now: ${tempStr(w.current.temp)}${feels} ${cur.emoji} ${cur.label}`;
     els.readoutNow.hidden = false;
   } else {
     els.readoutNow.hidden = true;
@@ -452,6 +463,9 @@ function render(w, date) {
   // ---- Particles + sound ----
   setParticles(cat, w);
   updateSound(cat, w);
+
+  // ---- Location map ----
+  renderMap(state.place.lat, state.place.lon, state.place.name, info.emoji);
 }
 
 function renderTempCard(w) {
@@ -465,6 +479,33 @@ function renderTempCard(w) {
   const hue = Math.max(0, Math.min(210, 210 - ((meanT + 20) / 60) * 210));
   els.thermoFill.style.background = `linear-gradient(180deg, hsl(${hue},85%,55%), hsl(${hue + 15},90%,60%))`;
   els.tempNote.textContent = tempDescription(meanT);
+
+  // "Feels like" — apparent temperature (wind chill / humidity)
+  const feels = feelsValue(w);
+  if (feels !== null) {
+    els.feelsTemp.textContent = tempStr(feels);
+    els.feelsNote.textContent = feelsDescription(meanT, feels);
+    els.feelsLike.hidden = false;
+  } else {
+    els.feelsLike.hidden = true;
+  }
+}
+
+// Best available "feels like" for the day: prefer the mean, else average of max/min.
+function feelsValue(w) {
+  if (w.feelsMean !== null && w.feelsMean !== undefined) return w.feelsMean;
+  if (w.feelsMax != null && w.feelsMin != null) return (w.feelsMax + w.feelsMin) / 2;
+  return null;
+}
+
+// Kid-friendly comparison of "feels like" vs the real temperature.
+function feelsDescription(actual, feels) {
+  const d = feels - actual;
+  if (d <= -6) return "the wind makes it feel much colder! 🥶";
+  if (d <= -2) return "a little colder than it really is 🧥";
+  if (d >= 6)  return "it feels much hotter and stickier! 🥵";
+  if (d >= 2)  return "a little warmer than it really is ☀️";
+  return "just about right 😊";
 }
 
 function tempDescription(c) {
@@ -542,6 +583,69 @@ function updateMascot(cat, meanT, info, temporal) {
   m.classList.add(mood);
   const lead = temporal === "future" ? "🔮 Future peek! " : "";
   els.mascotSpeech.textContent = lead + speech;
+}
+
+/* ============================================================
+   Location map (Leaflet + OpenStreetMap, no API key)
+   ============================================================ */
+const mapState = { map: null, marker: null, key: null };
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// A friendly emoji pin instead of Leaflet's default image marker.
+function emojiPin(emoji) {
+  return L.divIcon({
+    className: "map-pin",
+    html: `<span class="map-pin-emoji">${emoji || "📍"}</span>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 36],
+    popupAnchor: [0, -34]
+  });
+}
+
+function renderMap(lat, lon, name, emoji) {
+  const host = els.map;
+  if (!host) return;
+
+  // If Leaflet didn't load (offline / CDN blocked), fall back to a simple link.
+  if (typeof L === "undefined") {
+    host.innerHTML =
+      `<a class="map-fallback" target="_blank" rel="noopener" ` +
+      `href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=9/${lat}/${lon}">` +
+      `🗺️ Open the map of ${esc(name)} ↗</a>`;
+    if (els.mapCoords) els.mapCoords.textContent = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+    return;
+  }
+
+  if (!mapState.map) {
+    mapState.map = L.map(host, { scrollWheelZoom: false }).setView([lat, lon], 9);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(mapState.map);
+    // The container may still be settling into its final size on first paint.
+    setTimeout(() => mapState.map.invalidateSize(), 250);
+  }
+
+  // Only recenter when the place actually changed (so unit/day toggles don't jump the view).
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  if (key !== mapState.key) {
+    mapState.map.setView([lat, lon], 9, { animate: true });
+    mapState.key = key;
+  }
+
+  const icon = emojiPin(emoji);
+  if (!mapState.marker) {
+    mapState.marker = L.marker([lat, lon], { icon, title: name }).addTo(mapState.map);
+  } else {
+    mapState.marker.setLatLng([lat, lon]).setIcon(icon);
+  }
+  mapState.marker.bindPopup(`<b>${esc(name)}</b>`);
+
+  if (els.mapCoords) els.mapCoords.textContent = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
 }
 
 /* ============================================================
@@ -784,6 +888,9 @@ function init() {
 
   resizeCanvas();
   requestAnimationFrame(drawParticles);
+
+  // Show the map right away for the default place (weather details fill in after the fetch).
+  renderMap(state.place.lat, state.place.lon, state.place.name, "📍");
 
   travel(); // load the default place/date
 }

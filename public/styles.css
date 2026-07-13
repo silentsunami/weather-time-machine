@@ -116,6 +116,7 @@ a { color: var(--sky-deep); }
   grid-template-areas:
     "controls stage"
     "cards    cards"
+    "map      map"
     "facts    facts";
   gap: 20px;
   padding: 0 clamp(16px, 4vw, 44px) 40px;
@@ -126,6 +127,7 @@ a { color: var(--sky-deep); }
 .controls { grid-area: controls; }
 .stage-wrap { grid-area: stage; }
 .cards { grid-area: cards; }
+.map-section { grid-area: map; }
 .facts { grid-area: facts; }
 
 .card {
@@ -627,9 +629,72 @@ a { color: var(--sky-deep); }
 .thermo-readings { display: flex; flex-direction: column; gap: 10px; }
 .thermo-readings small { display: block; color: var(--ink-soft); font-weight: 600; font-size: 12px; }
 
+/* "Feels like" (apparent temperature) */
+.feels-like {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--paper-2);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.feels-like[hidden] { display: none; }
+.feels-emoji { font-size: 20px; flex-shrink: 0; }
+.feels-like strong { font-family: var(--font-fun); font-weight: 800; }
+
 .gauge { display: flex; align-items: center; gap: 12px; }
 .gauge-emoji { font-size: 40px; }
 .windmill { display: inline-block; animation: spin 3s linear infinite; }
+
+/* ============================================================
+   LOCATION MAP
+   ============================================================ */
+.map-section { display: flex; flex-direction: column; gap: 12px; }
+.map-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.map-head h2 { font-size: 24px; }
+.map-coords {
+  font-family: var(--font-fun);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.map {
+  position: relative;
+  z-index: 0;               /* keep Leaflet's internal layers below page UI */
+  width: 100%;
+  height: 340px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #dceaf5;
+  box-shadow: inset 0 0 0 3px #e6edf7;
+}
+.map-note { margin: 0; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+.map-fallback {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%;
+  font-family: var(--font-fun);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* Friendly emoji map pin (overrides Leaflet's default marker image) */
+.map-pin { background: none; border: none; }
+.map-pin-emoji {
+  display: block;
+  font-size: 32px;
+  line-height: 1;
+  text-align: center;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+}
+
+/* Match Leaflet's chrome to the app's rounded, friendly look */
+.leaflet-container { font-family: var(--font-body); background: #dceaf5; }
+.leaflet-popup-content { font-weight: 600; font-size: 14px; }
+.leaflet-bar a { border-radius: 6px; }
 
 /* ============================================================
    FACTS
@@ -703,6 +768,7 @@ a { color: var(--sky-deep); }
   .mascot-speech { display: none; }
   .readout-temp { font-size: 54px; }
   .header-toggles { width: 100%; }
+  .map { height: 260px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
